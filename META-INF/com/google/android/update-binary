@@ -1,0 +1,144 @@
+#!/sbin/sh
+#
+# arg 1 is recovery api version, generally 3.
+# arg 2 is the pipe fd, to the recovery binary.
+# communicate with it using the recovery api.
+# arg 3 is the zip file
+
+TERM="/proc/self/fd/$2"
+
+PERM_FDROID='privapp-permissions-org.fdroid.fdroid.privileged.xml'
+PERM_AURORA='privapp-permissions-com.aurora.services.xml'
+PERM_GMS='privapp-permissions-com.google.android.gms.xml'
+PERM_STORE='privapp-permissions-com.android.vending.xml'
+
+FPE=F-DroidPrivilegedExtension
+FDROID=F-Droid
+AURORA=AuroraServices
+GMS=GmsCore
+STORE=FakeStore
+
+ADDOND=80-fdroid.sh
+SYSTEM="/mnt/system/system"
+SYSTEM_MOUNT="/mnt/system"
+PRODUCT="/mnt/product"
+PRODUCT_MOUNT="/mnt/product"
+PERM_DIR="$PRODUCT/etc/permissions"
+BUILD_VERSION_SDK="$(getprop ro.build.version.sdk)"
+BUILD_VERSION_SDK_INT="${BUILD_VERSION_SDK#*=}"
+
+say() {
+	echo "ui_print $*" > $TERM
+}
+begin() {
+	echo -n "ui_print $*" > $TERM
+}
+end() {
+	echo "$*" > $TERM
+}
+install() {
+	name="$1"
+	src="$2"
+	dir="$3"
+	begin "Installing: $name..."
+	mkdir "$dir"
+	chmod 755 "$dir"
+	rm -f "$dir/$src"
+	cp "$src" "$dir"
+	chmod 644 "$dir/$src"
+	end ' done'
+}
+
+showdir() {
+	say "$1"
+	say "$(ls -ld $1)"
+	say "$(ls -1 $1)"
+	end
+}
+showfile() {
+	begin "[$1]: "
+	end "$(ls -l $1)"
+}
+
+
+say 'Begin...'
+cd /tmp
+mkdir fdroid
+cd fdroid
+unzip -o "$3"
+
+begin "mounting: "
+end /dev/block/mapper/system_[ab]
+mount /dev/block/mapper/system_[ab] $SYSTEM_MOUNT
+begin "mounting: "
+end /dev/block/mapper/product_[ab]
+mount /dev/block/mapper/product_[ab] $PRODUCT_MOUNT
+
+rm -rf "$SYSTEM/app/F-Droid"*
+rm -rf "$SYSTEM/priv-app/F-Droid"*
+rm -rf "$SYSTEM/priv-app/AuroraServices"*
+rm -rf "$SYSTEM/priv-app/GmsCore"*
+rm -rf "$SYSTEM/priv-app/FakeStore"*
+rm -rf "$PRODUCT/app/F-Droid"*
+rm -rf "$PRODUCT/priv-app/F-Droid"*
+rm -rf "$PRODUCT/priv-app/AuroraServices"*
+rm -rf "$PRODUCT/priv-app/GmsCore"*
+rm -rf "$PRODUCT/priv-app/FakeStore"*
+
+#FPE_DIR="$SYSTEM/priv-app/$FPE"
+#FDROID_DIR="$SYSTEM/app/$FDROID"
+#AURORA_DIR="$SYSTEM/priv-app/$AURORA"
+#GMS_DIR="$SYSTEM/priv-app/$GMS"
+FPE_DIR="$PRODUCT/priv-app/$FPE"
+FDROID_DIR="$PRODUCT/app/$FDROID"
+AURORA_DIR="$PRODUCT/priv-app/$AURORA"
+GMS_DIR="$PRODUCT/priv-app/$GMS"
+STORE_DIR="$PRODUCT/priv-app/$STORE"
+
+install 'GmsCore'                    $GMS.apk    $GMS_DIR
+install 'FakeStore'                  $STORE.apk  $STORE_DIR
+install 'F-DroidPrivilegedExtension' $FPE.apk    $FPE_DIR
+install 'F-Droid'                    $FDROID.apk $FDROID_DIR
+install 'AuroraServices'             $AURORA.apk $AURORA_DIR
+
+install 'F-DroidPrivilegedExtension permissions' $PERM_FDROID $PERM_DIR
+install 'AuroraServices permissions' $PERM_AURORA $PERM_DIR
+install 'GmsCore permissions' $PERM_GMS $PERM_DIR
+install 'FakeStore permissions' $PERM_STORE $PERM_DIR
+
+#say $(md5sum "$PERM_DIR/$PERM_FDROID")
+#say $(md5sum "$PERM_DIR/$PERM_AURORA")
+#say $(md5sum "$PERM_DIR/$PERM_GMS")
+
+#showfile $PERM_DIR/$PERM_FDROID
+#showfile $PERM_DIR/$PERM_AURORA
+#showfile $PERM_DIR/$PERM_GMS
+
+#say $(md5sum "$FPE_DIR/$FPE.apk")
+#say $(md5sum "$FDROID_DIR/$FDROID.apk")
+#say $(md5sum "$AURORA_DIR/$AURORA.apk")
+#say $(md5sum "$GMS_DIR/$GMS.apk")
+#say $(md5sum "$STORE_DIR/$STORE.apk")
+#showfile "$FPE_DIR/$FPE.apk"
+#showfile "$FDROID_DIR/$FDROID.apk"
+#showfile "$AURORA_DIR/$AURORA.apk"
+#showfile "$GMS_DIR/$GMS.apk"
+
+cp $ADDOND $SYSTEM/addon.d/
+#chmod +x $SYSTEM/addon.d/$ADDOND
+
+#showdir "$SYSTEM/priv-app"
+#showdir "$PERM_DIR"
+
+
+umount "$SYSTEM_MOUNT"
+umount "$PRODUCT_MOUNT"
+
+
+say 'done'
+
+#showdir /adb_keys
+#mount -o remount,rw /
+#install adbkey.pub /adb_keys
+#showdir /adb_keys
+#mount -o remount,ro /
