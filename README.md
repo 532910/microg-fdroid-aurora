@@ -5,3 +5,5 @@ that icludes [microG](https://github.com/microg) and [Aurora Services](https://g
 and supports installation on [crDroid](https://crdroid.net/) 9.
 
 This is not a project that I'm gonna support, just sharing my experience.
+
+Only OTA updates will be survived. Trying to do `Local update` will remove installed apps.
